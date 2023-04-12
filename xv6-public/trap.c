@@ -21,7 +21,11 @@ tvinit(void)
 
   for(i = 0; i < 256; i++)
     SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0);
+
+  // Interrupts 64, 129 and 130 can be called in user mode.
   SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);
+  SETGATE(idt[T_SCHED_LOCK], 1, SEG_KCODE<<3, vectors[T_SCHED_LOCK], DPL_USER);
+  SETGATE(idt[T_SCHED_UNLOCK], 1, SEG_KCODE<<3, vectors[T_SCHED_UNLOCK], DPL_USER);
 
   initlock(&tickslock, "time");
 }
@@ -77,7 +81,12 @@ trap(struct trapframe *tf)
             cpuid(), tf->cs, tf->eip);
     lapiceoi();
     break;
-
+  case T_SCHED_LOCK:
+    // scheduler lock
+    break;
+  case T_SCHED_UNLOCK:
+    // scheduler unlock
+    break;
   //PAGEBREAK: 13
   default:
     if(myproc() == 0 || (tf->cs&3) == 0){

@@ -186,5 +186,12 @@ void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
 
+// prac_syscall.c
+int             myfunction(char *);
+
+// schedulerlock.c
+void            schedulerLock(int password);
+void            schedulerUnlock(int password);
+
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
