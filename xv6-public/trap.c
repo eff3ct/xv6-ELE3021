@@ -54,7 +54,12 @@ trap(struct trapframe *tf)
   case T_IRQ0 + IRQ_TIMER:
     if(cpuid() == 0){
       acquire(&tickslock);
-      ticks++;
+
+      // ! global tick(ticks) should be set to 0 as it hits ticks == 100.
+      if (++ticks == 100) {
+        ticks = 0;
+      }
+
       wakeup(&ticks);
       release(&tickslock);
     }

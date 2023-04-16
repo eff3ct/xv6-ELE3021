@@ -7,10 +7,19 @@
 #include "proc.h"
 #include "spinlock.h"
 
+// TODO : implement queue lock.
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
+
+struct spinlock qlock;
+
+// * L0, L1, L2 Process Queue
+struct proc_queue L0;
+struct proc_queue L1;
+// TODO : L2 queue should be implemented.
 
 static struct proc *initproc;
 
@@ -21,10 +30,24 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
+/**
+ * @brief Initialize L0, L1, L2.
+ */
+void
+qinit(void)
+{
+  acquire(&qlock);
+  init_queue(&L0, 2*0 + 4);
+  init_queue(&L1, 2*1 + 4);
+  release(&qlock);
+}
+
 void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+  initlock(&qlock, "qlock");
+  qinit();
 }
 
 // Must be called with interrupts disabled
@@ -152,6 +175,11 @@ userinit(void)
   p->state = RUNNABLE;
 
   release(&ptable.lock);
+
+  // queueing
+  acquire(&qlock);
+  push_proc(&L0, p);
+  release(&qlock);  
 }
 
 // Grow current process's memory by n bytes.
@@ -219,6 +247,11 @@ fork(void)
 
   release(&ptable.lock);
 
+  // queueing
+  acquire(&qlock);
+  push_proc(&L0, np);
+  release(&qlock);
+
   return pid;
 }
 
@@ -264,6 +297,12 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
+
+  // dequeue
+  acquire(&qlock);
+  unlink_proc(&L0, curproc);
+  release(&qlock);
+
   sched();
   panic("zombie exit");
 }
@@ -331,8 +370,8 @@ scheduler(void)
     // Enable interrupts on this processor.
     sti();
 
-    // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+    
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
@@ -344,6 +383,21 @@ scheduler(void)
       switchuvm(p);
       p->state = RUNNING;
 
+      p->run_ticks++;
+
+      struct proc* tmp;
+      struct proc* s;
+      s = tmp = front(&L0);
+
+      cprintf("-----Print L0----- (size = %d)\n", L0.size);
+      cprintf("pid: %d, name: %s, state: %d, run_ticks: %d\n", tmp->pid, tmp->name, tmp->state, tmp->run_ticks);
+      while (1) {
+        struct proc* ttmp = tmp->next;
+        if (ttmp == s) break;
+        cprintf("pid: %d, name: %s, state: %d, run_ticks: %d\n", ttmp->pid, ttmp->name, ttmp->state, ttmp->run_ticks);
+        tmp = ttmp;
+      }
+
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
@@ -351,8 +405,8 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       c->proc = 0;
     }
-    release(&ptable.lock);
 
+    release(&ptable.lock);
   }
 }
 
@@ -440,6 +494,11 @@ sleep(void *chan, struct spinlock *lk)
   p->chan = chan;
   p->state = SLEEPING;
 
+  // dequeue
+  acquire(&qlock);
+  unlink_proc(&L0, p);
+  release(&qlock);
+
   sched();
 
   // Tidy up.
@@ -461,8 +520,14 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
+
+      // enqueue
+      acquire(&qlock);
+      push_proc(&L0, p);
+      release(&qlock);
+    }
 }
 
 // Wake up all processes sleeping on chan.
@@ -487,8 +552,14 @@ kill(int pid)
     if(p->pid == pid){
       p->killed = 1;
       // Wake process from sleep if necessary.
-      if(p->state == SLEEPING)
+      if(p->state == SLEEPING) {
         p->state = RUNNABLE;
+
+        // enqueue
+        acquire(&qlock);
+        push_proc(&L0, p);
+        release(&qlock);
+      }
       release(&ptable.lock);
       return 0;
     }

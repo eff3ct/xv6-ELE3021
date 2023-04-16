@@ -9,6 +9,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct proc_queue;
 
 // bio.c
 void            binit(void);
@@ -120,6 +121,14 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+
+// queue.c
+void            init_queue(struct proc_queue* q, int tq);
+int             is_empty(struct proc_queue* q);
+struct proc*    front(struct proc_queue* q);
+void            pop_proc(struct proc_queue* q);
+void            push_proc(struct proc_queue* q, struct proc* p);
+void            unlink_proc(struct proc_queue* q, struct proc* p);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
