@@ -97,6 +97,7 @@ void
 push_proc(struct proc_queue* q, struct proc* p)
 {
     q->size++;
+    p->run_ticks = 0;
     if (is_empty(q)) {
         q->front = q->end = p;
         p->next = p;
@@ -117,4 +118,23 @@ set_front(struct proc_queue* q, struct proc* p)
 {
     q->front = p;
     q->end = p->next;
+}
+
+/**
+ * @brief Check a process is already in a queue or not.
+ * @param q Process queue.
+ * @param p A process to check.
+ * @return Boolean value(0, 1) of existence.
+ */
+int
+exists(struct proc_queue* q, struct proc* p)
+{
+    if (is_empty(q)) return 0;
+    struct proc* curr = q->front;
+    do {
+        if (curr == p) return 1;
+        curr = curr->next;
+    } 
+    while (curr != q->front);
+    return 0;
 }

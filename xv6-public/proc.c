@@ -36,9 +36,15 @@ static void wakeup1(void *chan);
 void
 print_queue(struct proc_queue* q)
 {
+  if (is_empty(q)) {
+    cprintf("--- Print L%d --- (%d) \n", (q->time_quantum - 4) / 2, q->size);
+    cprintf("Empty queue\n");
+    return;
+  }
+
   struct proc* p = q->front;
   struct proc* tmp = q->front->next;
-  cprintf("--- Print L0 --- (%d) \n", L0.size);
+  cprintf("--- Print L%d --- (%d) \n", (q->time_quantum - 4) / 2, q->size);
   cprintf("{name: %s, pid: %d, state: %d, run_ticks: %d, priority: %d}\n", p->name, p->pid, p->state, p->run_ticks, p->priority);
   while(q->front != tmp) {
     cprintf("{name: %s, pid: %d, state: %d, run_ticks: %d, priority: %d}\n", tmp->name, tmp->pid, tmp->state, tmp->run_ticks, tmp->priority);
@@ -193,6 +199,7 @@ userinit(void)
   release(&ptable.lock);
 
   // queueing
+  cprintf("init code inserted.\n");
   acquire(&qlock);
   push_proc(&L0, p);
   release(&qlock);  
@@ -382,75 +389,83 @@ scheduler(void)
     sti();
 
     acquire(&ptable.lock);
-
     acquire(&qlock);
-    if (is_empty(&L0)) {
+
+    if (!is_empty(&L0)) {
+      print_queue(&L0);
+      print_queue(&L1);
+      cprintf("\n");
+
+      p = front(&L0);
+
+      if (p->state != RUNNABLE) {
+        set_front(&L0, p->next);
+        unlink_proc(&L0, p);
+        release(&qlock);
+        release(&ptable.lock);
+        continue;
+      }
+
+      c->proc = p;
+      switchuvm(p); 
+      p->state = RUNNING;
+
       release(&qlock);
-      release(&ptable.lock);
-      continue;
-    }
+      swtch(&(c->scheduler), p->context);
 
-    p = front(&L0);
+      acquire(&qlock);
+      switchkvm();
+      c->proc = 0;
 
-    if (p->state != RUNNABLE) {
       set_front(&L0, p->next);
-      unlink_proc(&L0, p);
+
+      if (++p->run_ticks == L0.time_quantum) {
+        p->run_ticks = 0;
+        
+        // Move to L1 queue
+        unlink_proc(&L0, p);
+        push_proc(&L1, p);
+      }
+
       release(&qlock);
       release(&ptable.lock);
+
       continue;
     }
 
-    c->proc = p;
-    switchuvm(p); 
-    p->state = RUNNING;
-    p->run_ticks++;
+    if (!is_empty(&L1)) {
+      print_queue(&L0);
+      print_queue(&L1);
+      cprintf("\n");
 
-    print_queue(&L0);
+      p = front(&L1);
 
-    release(&qlock);
-    swtch(&(c->scheduler), p->context);
+      if (p->state != RUNNABLE) {
+        set_front(&L1, p->next);
+        unlink_proc(&L1, p);
+        release(&qlock);
+        release(&ptable.lock);
+        continue;
+      }
 
-    acquire(&qlock);
-    switchkvm();
-    c->proc = 0;
-    set_front(&L0, p->next);
-    release(&qlock);
+      c->proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
 
+      release(&qlock);
+      swtch(&(c->scheduler), p->context);
+
+      ++p->run_ticks;
+
+      acquire(&qlock);
+      switchkvm();
+      c->proc = 0;
+
+      set_front(&L1, p->next);
+    }
+
+    release(&qlock);  
     release(&ptable.lock);
-    
-    // for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    //   if(p->state != RUNNABLE)
-    //     continue;
-
-    //   // Switch to chosen process.  It is the process's job
-    //   // to release ptable.lock and then reacquire it
-    //   // before jumping back to us.
-    //   c->proc = p;
-    //   switchuvm(p);
-    //   p->state = RUNNING;
-
-    //   p->run_ticks++;
-
-    //   struct proc* tmp;
-    //   struct proc* s;
-    //   s = tmp = front(&L0);
-
-    //   cprintf("-----Print L0----- (size = %d)\n", L0.size);
-    //   cprintf("pid: %d, name: %s, state: %d, run_ticks: %d\n", tmp->pid, tmp->name, tmp->state, tmp->run_ticks);
-    //   while (1) {
-    //     struct proc* ttmp = tmp->next;
-    //     if (ttmp == s) break;
-    //     cprintf("pid: %d, name: %s, state: %d, run_ticks: %d\n", ttmp->pid, ttmp->name, ttmp->state, ttmp->run_ticks);
-    //     tmp = ttmp;
-    //   }
-
-    //   swtch(&(c->scheduler), p->context);
-    //   switchkvm();
-
-    //   // Process is done running for now.
-    //   // It should have changed its p->state before coming back.
-    //   c->proc = 0;
-    // }
   }
 }
 
@@ -561,9 +576,12 @@ wakeup1(void *chan)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
-
       // enqueue
       acquire(&qlock);
+
+      if (exists(&L0, p)) unlink_proc(&L0, p);
+      else if (exists(&L1, p)) unlink_proc(&L1, p);
+
       push_proc(&L0, p);
       release(&qlock);
     }
