@@ -129,6 +129,7 @@ struct proc*    front(struct proc_queue* q);
 void            pop_proc(struct proc_queue* q);
 void            push_proc(struct proc_queue* q, struct proc* p);
 void            unlink_proc(struct proc_queue* q, struct proc* p);
+void            set_front(struct proc_queue* q, struct proc* p);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

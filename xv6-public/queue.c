@@ -106,3 +106,15 @@ push_proc(struct proc_queue* q, struct proc* p)
     q->end = p;
     p->next = q->front;
 }
+
+/**
+ * @brief Set a process as front of queue.
+ * @param q Process queue.
+ * @param p A process to set as front
+ */
+void
+set_front(struct proc_queue* q, struct proc* p)
+{
+    q->front = p;
+    q->end = p->next;
+}

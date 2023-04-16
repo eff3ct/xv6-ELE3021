@@ -8,7 +8,6 @@
 #include "spinlock.h"
 
 // TODO : implement queue lock.
-
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -29,6 +28,23 @@ extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
+
+/**
+ * @brief [Debugging function] print process queue.
+ * @param q Process queue.
+ */
+void
+print_queue(struct proc_queue* q)
+{
+  struct proc* p = q->front;
+  struct proc* tmp = q->front->next;
+  cprintf("--- Print L0 --- (%d) \n", L0.size);
+  cprintf("{name: %s, pid: %d, state: %d, run_ticks: %d, priority: %d}\n", p->name, p->pid, p->state, p->run_ticks, p->priority);
+  while(q->front != tmp) {
+    cprintf("{name: %s, pid: %d, state: %d, run_ticks: %d, priority: %d}\n", tmp->name, tmp->pid, tmp->state, tmp->run_ticks, tmp->priority);
+    tmp = tmp->next;
+  }
+}
 
 /**
  * @brief Initialize L0, L1, L2.
@@ -298,11 +314,6 @@ exit(void)
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
 
-  // dequeue
-  acquire(&qlock);
-  unlink_proc(&L0, curproc);
-  release(&qlock);
-
   sched();
   panic("zombie exit");
 }
@@ -371,42 +382,75 @@ scheduler(void)
     sti();
 
     acquire(&ptable.lock);
-    
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-
-      p->run_ticks++;
-
-      struct proc* tmp;
-      struct proc* s;
-      s = tmp = front(&L0);
-
-      cprintf("-----Print L0----- (size = %d)\n", L0.size);
-      cprintf("pid: %d, name: %s, state: %d, run_ticks: %d\n", tmp->pid, tmp->name, tmp->state, tmp->run_ticks);
-      while (1) {
-        struct proc* ttmp = tmp->next;
-        if (ttmp == s) break;
-        cprintf("pid: %d, name: %s, state: %d, run_ticks: %d\n", ttmp->pid, ttmp->name, ttmp->state, ttmp->run_ticks);
-        tmp = ttmp;
-      }
-
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
+    acquire(&qlock);
+    if (is_empty(&L0)) {
+      release(&qlock);
+      release(&ptable.lock);
+      continue;
     }
 
+    p = front(&L0);
+
+    if (p->state != RUNNABLE) {
+      set_front(&L0, p->next);
+      unlink_proc(&L0, p);
+      release(&qlock);
+      release(&ptable.lock);
+      continue;
+    }
+
+    c->proc = p;
+    switchuvm(p); 
+    p->state = RUNNING;
+    p->run_ticks++;
+
+    print_queue(&L0);
+
+    release(&qlock);
+    swtch(&(c->scheduler), p->context);
+
+    acquire(&qlock);
+    switchkvm();
+    c->proc = 0;
+    set_front(&L0, p->next);
+    release(&qlock);
+
     release(&ptable.lock);
+    
+    // for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    //   if(p->state != RUNNABLE)
+    //     continue;
+
+    //   // Switch to chosen process.  It is the process's job
+    //   // to release ptable.lock and then reacquire it
+    //   // before jumping back to us.
+    //   c->proc = p;
+    //   switchuvm(p);
+    //   p->state = RUNNING;
+
+    //   p->run_ticks++;
+
+    //   struct proc* tmp;
+    //   struct proc* s;
+    //   s = tmp = front(&L0);
+
+    //   cprintf("-----Print L0----- (size = %d)\n", L0.size);
+    //   cprintf("pid: %d, name: %s, state: %d, run_ticks: %d\n", tmp->pid, tmp->name, tmp->state, tmp->run_ticks);
+    //   while (1) {
+    //     struct proc* ttmp = tmp->next;
+    //     if (ttmp == s) break;
+    //     cprintf("pid: %d, name: %s, state: %d, run_ticks: %d\n", ttmp->pid, ttmp->name, ttmp->state, ttmp->run_ticks);
+    //     tmp = ttmp;
+    //   }
+
+    //   swtch(&(c->scheduler), p->context);
+    //   switchkvm();
+
+    //   // Process is done running for now.
+    //   // It should have changed its p->state before coming back.
+    //   c->proc = 0;
+    // }
   }
 }
 
@@ -493,11 +537,6 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
-
-  // dequeue
-  acquire(&qlock);
-  unlink_proc(&L0, p);
-  release(&qlock);
 
   sched();
 
