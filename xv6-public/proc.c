@@ -18,7 +18,7 @@ struct spinlock qlock;
 // * L0, L1, L2 Process Queue
 struct proc_queue L0;
 struct proc_queue L1;
-// TODO : L2 queue should be implemented.
+struct proc_pri_queue L2;
 
 static struct proc *initproc;
 
@@ -26,6 +26,7 @@ int isSchedulerLocked = 0;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
+extern uint ticks;
 
 static void wakeup1(void *chan);
 
@@ -58,9 +59,11 @@ print_queue(struct proc_queue* q)
 void
 qinit(void)
 {
+  initlock(&qlock, "qlock");
   acquire(&qlock);
   init_queue(&L0, 2*0 + 4);
   init_queue(&L1, 2*1 + 4);
+  init_pri_queue(&L2, 2*2 + 4);
   release(&qlock);
 }
 
@@ -68,7 +71,6 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
-  initlock(&qlock, "qlock");
   qinit();
 }
 
@@ -391,6 +393,18 @@ scheduler(void)
     acquire(&ptable.lock);
     acquire(&qlock);
 
+    // Move all processes to L0
+    if (ticks == 0) {
+      clear_queue(&L0);
+      clear_queue(&L1);
+
+      struct proc* tp;
+      for (tp = ptable.proc; tp < &ptable.proc[NPROC]; tp++) {
+        if (tp->state == RUNNABLE) push_proc(&L0, tp);
+      }
+    }
+
+    // Loop over L0 queue if not empty.
     if (!is_empty(&L0)) {
       print_queue(&L0);
       print_queue(&L1);
@@ -433,6 +447,7 @@ scheduler(void)
       continue;
     }
 
+    // Loop over L1 queue if not empty.
     if (!is_empty(&L1)) {
       print_queue(&L0);
       print_queue(&L1);

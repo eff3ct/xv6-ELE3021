@@ -10,6 +10,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 struct proc_queue;
+// struct proc_pri_queue;
 
 // bio.c
 void            binit(void);
@@ -131,6 +132,14 @@ void            push_proc(struct proc_queue* q, struct proc* p);
 void            unlink_proc(struct proc_queue* q, struct proc* p);
 void            set_front(struct proc_queue* q, struct proc* p);
 int             exists(struct proc_queue* q, struct proc* p);
+void            clear_queue(struct proc_queue* q);
+int             is_pri_empty(struct proc_pri_queue* pq);
+struct proc*    top_pri_proc(struct proc_pri_queue* pq);
+void            pop_pri_proc(struct proc_pri_queue* pq);
+void            push_pri_proc(struct proc_pri_queue* pq, struct proc* p);
+void            init_pri_queue(struct proc_pri_queue* pq, int tq);
+void            heapify_down(struct proc_pri_queue* pq);
+void            heapify_up(struct proc_pri_queue* pq);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

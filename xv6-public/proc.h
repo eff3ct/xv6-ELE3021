@@ -64,6 +64,13 @@ struct proc_queue {
   int size;
 };
 
+// | Priority queue for process (Min Heap)
+struct proc_pri_queue {
+  struct proc* node[PQ_SIZE];
+  int size;
+  int time_quantum;
+};
+
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss
