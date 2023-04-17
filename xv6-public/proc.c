@@ -17,7 +17,7 @@ struct spinlock qlock;
 // * L0, L1, L2 Process Queue
 struct proc_queue L0;
 struct proc_queue L1;
-struct proc_pri_queue L2;
+struct proc_queue L2;
 struct proc_queue sched_lk_q;
 
 static struct proc *initproc;
@@ -64,8 +64,8 @@ qinit(void)
   acquire(&qlock);
   init_queue(&L0, 2*0 + 4);
   init_queue(&L1, 2*1 + 4);
+  init_queue(&L2, 2*2 + 4);
   init_queue(&sched_lk_q, 100);
-  init_pri_queue(&L2, 2*2 + 4);
   release(&qlock);
 }
 
@@ -443,8 +443,8 @@ scheduler(void)
     if (ticks == 0) {
       clear_queue(&L0);
       clear_queue(&L1);
+      clear_queue(&L2);
       clear_queue(&sched_lk_q);
-      clear_pri_queue(&L2);
 
       struct proc* tp;
       for (tp = ptable.proc; tp < &ptable.proc[NPROC]; tp++) {
@@ -524,7 +524,7 @@ scheduler(void)
       if (++p->run_ticks == L0.time_quantum) {
         // Move to L2 queue
         unlink_proc(&L1, p);
-        push_pri_proc(&L2, p, ++cticks);
+        push_proc(&L2, p);
       }
 
       release(&qlock);  
@@ -534,11 +534,12 @@ scheduler(void)
     }
 
     // Loop over L2 queue if not empty.
-    if (!is_pri_empty(&L2)) {
+    if (!is_empty(&L2)) {
       p = top_pri_proc(&L2);
 
       if (p->state != RUNNABLE) {
-        pop_pri_proc(&L2);
+        if (p == front(&L2)) set_front(&L2, p->next);
+        unlink_proc(&L2, p);
         release(&qlock);
         release(&ptable.lock);
         continue;
@@ -555,7 +556,10 @@ scheduler(void)
       switchkvm();
 
       c->proc = 0;
-      ++p->run_ticks;
+      if (++p->run_ticks == L2.time_quantum) {
+        p->run_ticks = 0;
+        p->priority = (p->priority >= 1) ? p->priority - 1 : 0;
+      }
 
       release(&qlock);
       release(&ptable.lock);

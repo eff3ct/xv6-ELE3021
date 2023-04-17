@@ -26,6 +26,8 @@ extern int isSchedulerLocked;
 void 
 schedulerLock(int password)
 {
+  if (isSchedulerLocked == 1) 
+    panic("schedulerLock: scheduler is already locked.\n");
   if (password == 2021093054) {
     isSchedulerLocked = 1;
     acquire(&tickslock);
@@ -56,6 +58,8 @@ schedulerLock(int password)
 void
 schedulerUnlock(int password)
 {
+  if (isSchedulerLocked == 0) 
+    panic("schedulerUnlock: scheduler is not locked.\n");
   if (password == 2021093054) {
     isSchedulerLocked = 0;
     acquire(&ptable.lock);
