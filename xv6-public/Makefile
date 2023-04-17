@@ -29,6 +29,8 @@ OBJS = \
 	vm.o\
 	schedulerlock.o\
 	queue.o\
+	setpriority.o\
+	getlevel.o\
 
 # Cross-compiling (e.g., on Mac OS X)
 # TOOLPREFIX = i386-jos-elf

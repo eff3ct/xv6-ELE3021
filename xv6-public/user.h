@@ -25,6 +25,9 @@ int sleep(int);
 int uptime(void);
 void schedulerLock(int);
 void schedulerUnlock(int);
+void setPriority(int, int);
+int getLevel(void);
+void yield(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

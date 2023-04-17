@@ -56,9 +56,7 @@ trap(struct trapframe *tf)
       acquire(&tickslock);
 
       // ! global tick(ticks) should be set to 0 as it hits ticks == 100.
-      if (++ticks == 100) {
-        ticks = 0;
-      }
+      if (++ticks == 100) ticks = 0;
 
       wakeup(&ticks);
       release(&tickslock);
@@ -87,10 +85,10 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_SCHED_LOCK:
-    // scheduler lock
+    schedulerLock(2021093054);
     break;
   case T_SCHED_UNLOCK:
-    // scheduler unlock
+    schedulerUnlock(2021093054);
     break;
   //PAGEBREAK: 13
   default:

@@ -7,7 +7,6 @@
 #include "proc.h"
 #include "spinlock.h"
 
-// TODO : implement queue lock.
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -19,6 +18,7 @@ struct spinlock qlock;
 struct proc_queue L0;
 struct proc_queue L1;
 struct proc_pri_queue L2;
+struct proc_queue sched_lk_q;
 
 static struct proc *initproc;
 
@@ -28,6 +28,7 @@ extern void forkret(void);
 extern void trapret(void);
 extern uint ticks;
 
+uint cticks = 0;
 static void wakeup1(void *chan);
 
 /**
@@ -63,6 +64,7 @@ qinit(void)
   acquire(&qlock);
   init_queue(&L0, 2*0 + 4);
   init_queue(&L1, 2*1 + 4);
+  init_queue(&sched_lk_q, 100);
   init_pri_queue(&L2, 2*2 + 4);
   release(&qlock);
 }
@@ -136,6 +138,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->priority = 3;
 
   release(&ptable.lock);
 
@@ -197,6 +200,7 @@ userinit(void)
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
+  p->queue_level = 0;
 
   release(&ptable.lock);
 
@@ -269,6 +273,7 @@ fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+  np->queue_level = 0;
 
   release(&ptable.lock);
 
@@ -382,6 +387,7 @@ wait(void)
 void
 scheduler(void)
 {
+  struct proc* reserved = (void*)0;
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
@@ -393,23 +399,68 @@ scheduler(void)
     acquire(&ptable.lock);
     acquire(&qlock);
 
-    // Move all processes to L0
+    // Service the scheduler lock queue if isSchedulerLocked is true.
+    if (isSchedulerLocked) {
+      p = front(&sched_lk_q);
+
+      if(ticks == 0 && p->run_ticks) {
+        isSchedulerLocked = 0;
+        clear_queue(&sched_lk_q);
+        if(p->state == RUNNABLE) {
+          push_proc(&L0, p);
+          reserved = p;
+        }
+        release(&qlock);
+        release(&ptable.lock);
+        continue;
+      }
+
+      if (p->state != RUNNABLE) {
+        clear_queue(&sched_lk_q);
+        release(&qlock);
+        release(&ptable.lock);
+        continue;
+      }
+
+      c->proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+
+      swtch(&(c->scheduler), p->context);
+
+      switchkvm();
+
+      c->proc = 0;
+
+      ++p->run_ticks;
+
+      release(&qlock);
+      release(&ptable.lock);
+      continue;
+    }
+
+    // Move all processes to L0 when ticks is 0. (priority boosting)
     if (ticks == 0) {
       clear_queue(&L0);
       clear_queue(&L1);
+      clear_queue(&sched_lk_q);
+      clear_pri_queue(&L2);
 
       struct proc* tp;
       for (tp = ptable.proc; tp < &ptable.proc[NPROC]; tp++) {
-        if (tp->state == RUNNABLE) push_proc(&L0, tp);
+        if (tp == reserved) {
+          reserved = (void*)0;
+          continue;
+        }
+        if (tp->state == RUNNABLE) {
+          tp->priority = 3;
+          push_proc(&L0, tp);
+        }
       }
     }
 
     // Loop over L0 queue if not empty.
     if (!is_empty(&L0)) {
-      print_queue(&L0);
-      print_queue(&L1);
-      cprintf("\n");
-
       p = front(&L0);
 
       if (p->state != RUNNABLE) {
@@ -434,8 +485,6 @@ scheduler(void)
       set_front(&L0, p->next);
 
       if (++p->run_ticks == L0.time_quantum) {
-        p->run_ticks = 0;
-        
         // Move to L1 queue
         unlink_proc(&L0, p);
         push_proc(&L1, p);
@@ -449,10 +498,6 @@ scheduler(void)
 
     // Loop over L1 queue if not empty.
     if (!is_empty(&L1)) {
-      print_queue(&L0);
-      print_queue(&L1);
-      cprintf("\n");
-
       p = front(&L1);
 
       if (p->state != RUNNABLE) {
@@ -470,16 +515,55 @@ scheduler(void)
       release(&qlock);
       swtch(&(c->scheduler), p->context);
 
-      ++p->run_ticks;
-
       acquire(&qlock);
       switchkvm();
       c->proc = 0;
 
       set_front(&L1, p->next);
+
+      if (++p->run_ticks == L0.time_quantum) {
+        // Move to L2 queue
+        unlink_proc(&L1, p);
+        push_pri_proc(&L2, p, ++cticks);
+      }
+
+      release(&qlock);  
+      release(&ptable.lock);
+
+      continue;
     }
 
-    release(&qlock);  
+    // Loop over L2 queue if not empty.
+    if (!is_pri_empty(&L2)) {
+      p = top_pri_proc(&L2);
+
+      if (p->state != RUNNABLE) {
+        pop_pri_proc(&L2);
+        release(&qlock);
+        release(&ptable.lock);
+        continue;
+      }
+
+      c->proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+
+      release(&qlock);
+      swtch(&(c->scheduler), p->context);
+
+      acquire(&qlock);
+      switchkvm();
+
+      c->proc = 0;
+      ++p->run_ticks;
+
+      release(&qlock);
+      release(&ptable.lock);
+
+      continue;
+    }
+
+    release(&qlock);
     release(&ptable.lock);
   }
 }
@@ -518,6 +602,14 @@ yield(void)
   myproc()->state = RUNNABLE;
   sched();
   release(&ptable.lock);
+}
+
+// system call wrapper for yield()
+int
+sys_yield(void)
+{
+  yield();
+  return 0;
 }
 
 // A fork child's very first scheduling by scheduler()
@@ -629,6 +721,7 @@ kill(int pid)
 
         // enqueue
         acquire(&qlock);
+        p->queue_level = 0;
         push_proc(&L0, p);
         release(&qlock);
       }

@@ -27,7 +27,8 @@ init_queue(struct proc_queue* q, int tq)
 int
 is_empty(struct proc_queue* q)
 {
-    return q->size == 0;
+    // cprintf("is_empty: %d, %d", q->front == (void*)0, q->size == 0);
+    return q->front == (void*)0;
 }
 
 /**
@@ -98,6 +99,7 @@ push_proc(struct proc_queue* q, struct proc* p)
 {
     q->size++;
     p->run_ticks = 0;
+    p->queue_level = (q->time_quantum - 4) / 2;
     if (is_empty(q)) {
         q->front = q->end = p;
         p->next = p;
@@ -206,8 +208,11 @@ heapify_down(struct proc_pri_queue* pq)
  * @param p A process to push.
  */
 void
-push_pri_proc(struct proc_pri_queue* pq, struct proc* p)
+push_pri_proc(struct proc_pri_queue* pq, struct proc* p, uint pri_arrival_t)
 {
+    p->queue_level = 2;
+    p->run_ticks = 0;
+    p->pri_arrival_t = pri_arrival_t;
     if (++pq->size >= PQ_SIZE) panic("push_pri_proc: queue is full");
     pq->node[pq->size] = p;
     heapify_up(pq);
@@ -246,4 +251,14 @@ int
 is_pri_empty(struct proc_pri_queue* pq)
 {
     return pq->size == 0;
+}
+
+/**
+ * @brief Clear a priority queue.
+ * @param pq Process priority queue.
+ */
+void
+clear_pri_queue(struct proc_pri_queue* pq)
+{
+    pq->size = 0;
 }

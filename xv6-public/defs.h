@@ -10,7 +10,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 struct proc_queue;
-// struct proc_pri_queue;
+struct proc_pri_queue;
 
 // bio.c
 void            binit(void);
@@ -54,6 +54,9 @@ struct inode*   nameiparent(char*, char*);
 int             readi(struct inode*, char*, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, char*, uint, uint);
+
+// getlevel.c
+int             getLevel(void);
 
 // ide.c
 void            ideinit(void);
@@ -136,10 +139,18 @@ void            clear_queue(struct proc_queue* q);
 int             is_pri_empty(struct proc_pri_queue* pq);
 struct proc*    top_pri_proc(struct proc_pri_queue* pq);
 void            pop_pri_proc(struct proc_pri_queue* pq);
-void            push_pri_proc(struct proc_pri_queue* pq, struct proc* p);
+void            push_pri_proc(struct proc_pri_queue* pq, struct proc* p, uint pri_arrival_t);
 void            init_pri_queue(struct proc_pri_queue* pq, int tq);
 void            heapify_down(struct proc_pri_queue* pq);
 void            heapify_up(struct proc_pri_queue* pq);
+void            clear_pri_queue(struct proc_pri_queue* pq);
+
+// setpriority.c
+void            setPriority(int pid, int priority);
+
+// schedulerlock.c
+void            schedulerLock(int password);
+void            schedulerUnlock(int password);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -205,13 +216,6 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
-
-// prac_syscall.c
-int             myfunction(char *);
-
-// schedulerlock.c
-void            schedulerLock(int password);
-void            schedulerUnlock(int password);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

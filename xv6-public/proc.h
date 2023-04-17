@@ -55,6 +55,7 @@ struct proc {
   int queue_level;             // Current queue level of this process. (0[L0] ~ 2[L2])
   struct proc* next;           // Next queue entry of this process.
   int run_ticks;               // How much ticks have been used. 
+  int pri_arrival_t;    // Arrival ticks of this process in priority queue.
 };
 
 struct proc_queue {

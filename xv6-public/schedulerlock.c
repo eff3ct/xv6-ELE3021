@@ -1,8 +1,21 @@
 #include "types.h"
 #include "defs.h"
+#include "param.h"
+#include "memlayout.h"
+#include "mmu.h"
+#include "x86.h"
+#include "proc.h"
 #include "spinlock.h"
 
-// TODO : Implement schedulerLock and schedulerUnlock
+extern struct {
+  struct spinlock lock;
+  struct proc proc[NPROC];
+} ptable;
+extern struct proc_queue sched_lk_q;
+extern struct proc_queue L0;
+extern struct spinlock qlock;
+extern struct spinlock tickslock;
+extern uint ticks;
 
 extern int isSchedulerLocked;
 
@@ -13,13 +26,27 @@ extern int isSchedulerLocked;
 void 
 schedulerLock(int password)
 {
+  if (password == 2021093054) {
+    isSchedulerLocked = 1;
+    acquire(&tickslock);
+    ticks = 0;
+    release(&tickslock);
 
-    if (password == 2021093054) {
-        isSchedulerLocked = 1;
-    }
-    else {
-        // TODO : Print current process' pid, time, quantum, level and kill.
-    }
+    acquire(&ptable.lock);
+    acquire(&qlock);
+    push_proc(&sched_lk_q, myproc());
+    release(&qlock);
+    release(&ptable.lock);
+  }
+  else {
+    acquire(&ptable.lock);
+    cprintf("\n----------------------------------------\n");
+    cprintf("[ERROR] Scheduler lock failed. Killing current process.\n");
+    cprintf("[INFO] pid: %d, quantum: %d, level: %d\n", myproc()->pid, 2 * myproc()->queue_level + 4 - myproc()->run_ticks, myproc()->queue_level);
+    cprintf("----------------------------------------\n\n");
+    release(&ptable.lock);
+    kill(myproc()->pid);
+  }
 }
 
 /**
@@ -29,12 +56,27 @@ schedulerLock(int password)
 void
 schedulerUnlock(int password)
 {
-    if (password == 2021093054) {
-        isSchedulerLocked = 0;
-    }
-    else {
-        // TODO : Print current process' pid, time, quantum, level and kill.
-    }
+  if (password == 2021093054) {
+    isSchedulerLocked = 0;
+    acquire(&ptable.lock);
+    acquire(&qlock);
+
+    clear_queue(&sched_lk_q);
+    myproc()->priority = 3;
+    push_proc(&L0, myproc());
+
+    release(&qlock);
+    release(&ptable.lock);
+  }
+  else {
+    acquire(&ptable.lock);
+    cprintf("\n----------------------------------------\n");
+    cprintf("[ERROR] Scheduler lock failed. Killing current process.\n");
+    cprintf("[INFO] pid: %d, quantum: %d, level: %d\n", myproc()->pid, 2 * myproc()->queue_level + 4 - myproc()->run_ticks, myproc()->queue_level);
+    cprintf("----------------------------------------\n\n");
+    release(&ptable.lock);
+    kill(myproc()->pid);
+  }
 }
 
 // wrapper functions for above system calls.
@@ -42,17 +84,17 @@ schedulerUnlock(int password)
 int
 sys_schedulerLock(void) 
 {
-    int password;
-    if (argint(0, &password) < 0) return -1;
-    schedulerLock(password);
-    return 0;    
+  int password;
+  if (argint(0, &password) < 0) return -1;
+  schedulerLock(password);
+  return 0;    
 }
 
 int
 sys_schedulerUnlock(void)
 {
-    int password;
-    if (argint(0, &password) < 0) return -1;
-    schedulerUnlock(password);    
-    return 0;    
+  int password;
+  if (argint(0, &password) < 0) return -1;
+  schedulerUnlock(password);    
+  return 0;    
 }
