@@ -12,8 +12,6 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
-struct spinlock qlock;
-
 // * L0, L1, L2 Process Queue
 struct proc_queue L0;
 struct proc_queue L1;
@@ -60,20 +58,19 @@ print_queue(struct proc_queue* q)
 void
 qinit(void)
 {
-  initlock(&qlock, "qlock");
-  acquire(&qlock);
   init_queue(&L0, 2*0 + 4);
   init_queue(&L1, 2*1 + 4);
   init_queue(&L2, 2*2 + 4);
   init_queue(&sched_lk_q, 100);
-  release(&qlock);
 }
 
 void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+  acquire(&ptable.lock);
   qinit();
+  release(&ptable.lock);
 }
 
 // Must be called with interrupts disabled
@@ -200,15 +197,9 @@ userinit(void)
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
-  p->queue_level = 0;
+  push_proc(&L0, p); 
 
   release(&ptable.lock);
-
-  // queueing
-  cprintf("init code inserted.\n");
-  acquire(&qlock);
-  push_proc(&L0, p);
-  release(&qlock);  
 }
 
 // Grow current process's memory by n bytes.
@@ -273,14 +264,9 @@ fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
-  np->queue_level = 0;
+  push_proc(&L0, np);
 
   release(&ptable.lock);
-
-  // queueing
-  acquire(&qlock);
-  push_proc(&L0, np);
-  release(&qlock);
 
   return pid;
 }
@@ -340,7 +326,6 @@ wait(void)
   struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
-  
   acquire(&ptable.lock);
   for(;;){
     // Scan through table looking for exited children.
@@ -397,7 +382,6 @@ scheduler(void)
     sti();
 
     acquire(&ptable.lock);
-    acquire(&qlock);
 
     // Service the scheduler lock queue if isSchedulerLocked is true.
     if (isSchedulerLocked) {
@@ -410,14 +394,12 @@ scheduler(void)
           push_proc(&L0, p);
           reserved = p;
         }
-        release(&qlock);
         release(&ptable.lock);
         continue;
       }
 
       if (p->state != RUNNABLE) {
         clear_queue(&sched_lk_q);
-        release(&qlock);
         release(&ptable.lock);
         continue;
       }
@@ -434,7 +416,6 @@ scheduler(void)
 
       ++p->run_ticks;
 
-      release(&qlock);
       release(&ptable.lock);
       continue;
     }
@@ -466,7 +447,6 @@ scheduler(void)
       if (p->state != RUNNABLE) {
         set_front(&L0, p->next);
         unlink_proc(&L0, p);
-        release(&qlock);
         release(&ptable.lock);
         continue;
       }
@@ -475,10 +455,8 @@ scheduler(void)
       switchuvm(p); 
       p->state = RUNNING;
 
-      release(&qlock);
       swtch(&(c->scheduler), p->context);
 
-      acquire(&qlock);
       switchkvm();
       c->proc = 0;
 
@@ -490,7 +468,6 @@ scheduler(void)
         push_proc(&L1, p);
       }
 
-      release(&qlock);
       release(&ptable.lock);
 
       continue;
@@ -503,7 +480,6 @@ scheduler(void)
       if (p->state != RUNNABLE) {
         set_front(&L1, p->next);
         unlink_proc(&L1, p);
-        release(&qlock);
         release(&ptable.lock);
         continue;
       }
@@ -512,10 +488,8 @@ scheduler(void)
       switchuvm(p);
       p->state = RUNNING;
 
-      release(&qlock);
       swtch(&(c->scheduler), p->context);
 
-      acquire(&qlock);
       switchkvm();
       c->proc = 0;
 
@@ -527,7 +501,6 @@ scheduler(void)
         push_proc(&L2, p);
       }
 
-      release(&qlock);  
       release(&ptable.lock);
 
       continue;
@@ -540,7 +513,6 @@ scheduler(void)
       if (p->state != RUNNABLE) {
         if (p == front(&L2)) set_front(&L2, p->next);
         unlink_proc(&L2, p);
-        release(&qlock);
         release(&ptable.lock);
         continue;
       }
@@ -549,10 +521,8 @@ scheduler(void)
       switchuvm(p);
       p->state = RUNNING;
 
-      release(&qlock);
       swtch(&(c->scheduler), p->context);
 
-      acquire(&qlock);
       switchkvm();
 
       c->proc = 0;
@@ -561,13 +531,10 @@ scheduler(void)
         p->priority = (p->priority >= 1) ? p->priority - 1 : 0;
       }
 
-      release(&qlock);
       release(&ptable.lock);
-
       continue;
     }
 
-    release(&qlock);
     release(&ptable.lock);
   }
 }
@@ -687,14 +654,10 @@ wakeup1(void *chan)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
-      // enqueue
-      acquire(&qlock);
-
       if (exists(&L0, p)) unlink_proc(&L0, p);
       else if (exists(&L1, p)) unlink_proc(&L1, p);
-
+      else if (exists(&L2, p)) unlink_proc(&L2, p);
       push_proc(&L0, p);
-      release(&qlock);
     }
 }
 
@@ -722,12 +685,7 @@ kill(int pid)
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING) {
         p->state = RUNNABLE;
-
-        // enqueue
-        acquire(&qlock);
-        p->queue_level = 0;
         push_proc(&L0, p);
-        release(&qlock);
       }
       release(&ptable.lock);
       return 0;

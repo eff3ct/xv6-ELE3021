@@ -13,7 +13,6 @@ extern struct {
 } ptable;
 extern struct proc_queue sched_lk_q;
 extern struct proc_queue L0;
-extern struct spinlock qlock;
 extern struct spinlock tickslock;
 extern uint ticks;
 
@@ -35,9 +34,7 @@ schedulerLock(int password)
     release(&tickslock);
 
     acquire(&ptable.lock);
-    acquire(&qlock);
     push_proc(&sched_lk_q, myproc());
-    release(&qlock);
     release(&ptable.lock);
   }
   else {
@@ -63,13 +60,11 @@ schedulerUnlock(int password)
   if (password == 2021093054) {
     isSchedulerLocked = 0;
     acquire(&ptable.lock);
-    acquire(&qlock);
 
     clear_queue(&sched_lk_q);
     myproc()->priority = 3;
     push_proc(&L0, myproc());
 
-    release(&qlock);
     release(&ptable.lock);
   }
   else {
