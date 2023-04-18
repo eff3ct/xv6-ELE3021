@@ -15,11 +15,7 @@ extern struct {
 int
 getLevel(void)
 {
-  int ret = -1;
-  acquire(&ptable.lock);
-  ret = myproc()->queue_level;
-  release(&ptable.lock);
-  return ret;
+  return myproc()->queue_level;
 }
 
 int

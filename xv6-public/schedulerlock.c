@@ -31,6 +31,7 @@ schedulerLock(int password)
     isSchedulerLocked = 1;
     acquire(&tickslock);
     ticks = 0;
+    wakeup(&ticks);
     release(&tickslock);
 
     acquire(&ptable.lock);
@@ -38,14 +39,13 @@ schedulerLock(int password)
     release(&ptable.lock);
   }
   else {
-    acquire(&ptable.lock);
     cprintf("\n----------------------------------------\n");
     cprintf("[ERROR] Scheduler lock failed. Killing current process.\n");
     cprintf("[INFO] pid: %d, quantum: %d, level: %d\n", myproc()->pid, 2 * myproc()->queue_level + 4 - myproc()->run_ticks, myproc()->queue_level);
     cprintf("----------------------------------------\n\n");
-    release(&ptable.lock);
-    kill(myproc()->pid);
   }
+
+  exit();
 }
 
 /**
@@ -68,14 +68,14 @@ schedulerUnlock(int password)
     release(&ptable.lock);
   }
   else {
-    acquire(&ptable.lock);
     cprintf("\n----------------------------------------\n");
     cprintf("[ERROR] Scheduler lock failed. Killing current process.\n");
     cprintf("[INFO] pid: %d, quantum: %d, level: %d\n", myproc()->pid, 2 * myproc()->queue_level + 4 - myproc()->run_ticks, myproc()->queue_level);
     cprintf("----------------------------------------\n\n");
-    release(&ptable.lock);
     kill(myproc()->pid);
   }
+
+  exit();
 }
 
 // wrapper functions for above system calls.
