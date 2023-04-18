@@ -387,7 +387,7 @@ scheduler(void)
     if (isSchedulerLocked) {
       p = front(&sched_lk_q);
 
-      if(ticks == 0 && p->run_ticks) {
+      if (p->run_ticks == 100) {
         isSchedulerLocked = 0;
         clear_queue(&sched_lk_q);
         if(p->state == RUNNABLE) {
@@ -399,6 +399,7 @@ scheduler(void)
       }
 
       if (p->state != RUNNABLE) {
+        isSchedulerLocked = 0;
         clear_queue(&sched_lk_q);
         release(&ptable.lock);
         continue;

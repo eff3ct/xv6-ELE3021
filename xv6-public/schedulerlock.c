@@ -44,8 +44,6 @@ schedulerLock(int password)
     cprintf("[INFO] pid: %d, quantum: %d, level: %d\n", myproc()->pid, 2 * myproc()->queue_level + 4 - myproc()->run_ticks, myproc()->queue_level);
     cprintf("----------------------------------------\n\n");
   }
-
-  exit();
 }
 
 /**
@@ -74,8 +72,6 @@ schedulerUnlock(int password)
     cprintf("----------------------------------------\n\n");
     kill(myproc()->pid);
   }
-
-  exit();
 }
 
 // wrapper functions for above system calls.
