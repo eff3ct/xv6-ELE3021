@@ -118,8 +118,14 @@ push_proc(struct proc_queue* q, struct proc* p)
 void
 set_front(struct proc_queue* q, struct proc* p)
 {
+    struct proc* prev = q->front;
+    struct proc* curr = q->front->next;
+    while (curr != p) {
+        prev = curr;
+        curr = curr->next;
+    }
     q->front = p;
-    q->end = p->next;
+    q->end = prev;
 }
 
 /**
