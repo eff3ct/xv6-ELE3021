@@ -20,6 +20,12 @@ main(int argc, char* argv[])
         if (argc <= 2) exit();
         int password = atoi(argv[2]);
         schedulerLock(password);
+
+        // a arbitrary task
+        int d = 1;
+        for (int i = 0; i < 90000000; ++i)
+            d = (d + i) % 10007;
+        printf(1, "d: %d\n", d);
     }
     else if (strcmp(argv[1], cmds[1]) == 0) {
         if (argc <= 3) exit();
@@ -33,6 +39,12 @@ main(int argc, char* argv[])
     }
     else if (strcmp(argv[1], cmds[3]) == 0) {
         __asm__("int $129");
+
+        // a arbitrary task
+        int d = 1;
+        for (int i = 0; i < 90000000; ++i)
+            d = (d + i) % 10007;
+        printf(1, "d: %d\n", d);
     }
     else if (strcmp(argv[1], cmds[4]) == 0) {
         __asm__("int $130");
