@@ -43,6 +43,7 @@ schedulerLock(int password)
     cprintf("[ERROR] Scheduler lock failed. Killing current process.\n");
     cprintf("[INFO] pid: %d, quantum: %d, level: %d\n", myproc()->pid, 2 * myproc()->queue_level + 4 - myproc()->run_ticks, myproc()->queue_level);
     cprintf("----------------------------------------\n\n");
+    kill(myproc()->pid);
   }
 }
 

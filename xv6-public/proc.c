@@ -686,6 +686,9 @@ kill(int pid)
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING) {
         p->state = RUNNABLE;
+        if (exists(&L0, p)) unlink_proc(&L0, p);
+        else if (exists(&L1, p)) unlink_proc(&L1, p);
+        else if (exists(&L2, p)) unlink_proc(&L2, p);
         push_proc(&L0, p);
       }
       release(&ptable.lock);
