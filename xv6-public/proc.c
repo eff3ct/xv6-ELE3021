@@ -18,6 +18,8 @@ struct proc_queue L1;
 struct proc_queue L2;
 struct proc_queue sched_lk_q;
 
+struct proc* reserved = (void*)0;
+
 static struct proc *initproc;
 
 int isSchedulerLocked = 0;
@@ -372,7 +374,6 @@ wait(void)
 void
 scheduler(void)
 {
-  struct proc* reserved = (void*)0;
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;

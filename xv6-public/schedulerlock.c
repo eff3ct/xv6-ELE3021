@@ -15,6 +15,7 @@ extern struct proc_queue sched_lk_q;
 extern struct proc_queue L0;
 extern struct spinlock tickslock;
 extern uint ticks;
+extern struct proc* reserved;
 
 extern int isSchedulerLocked;
 
@@ -65,7 +66,7 @@ schedulerUnlock(int password)
 
     clear_queue(&sched_lk_q);
     myproc()->priority = 3;
-    push_proc(&L0, myproc());
+    reserved = myproc();
 
     release(&ptable.lock);
   }
