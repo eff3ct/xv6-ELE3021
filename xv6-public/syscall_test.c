@@ -11,7 +11,9 @@ main(int argc, char* argv[])
         "set", 
         "get",
         "intlock",
-        "intunlock"
+        "intunlock",
+        "longlock",
+        "unlocktest"
     };
 
     printf(1, "argv[1]: %s\n", argv[1]);
@@ -48,6 +50,30 @@ main(int argc, char* argv[])
     }
     else if (strcmp(argv[1], cmds[4]) == 0) {
         __asm__("int $130");
+    }
+    else if (strcmp(argv[1], cmds[5]) == 0) {
+        __asm__("int $129");
+
+        // a arbitrary task
+        int d = 1;
+        for (int i = 0; i < 990000000; ++i) 
+            d = (d + i) % 10007;
+        printf(1, "d: %d\n", d);
+    }
+    else if (strcmp(argv[1], cmds[6]) == 0) {
+        __asm__("int $129");
+        printf(1, "locked.\n");
+        // a arbitrary task
+        int d = 1;
+        for (int i = 0; i < 990000000; ++i) {
+            if (i == 30000000) {
+                __asm__("int $130");
+                printf(1, "unlocked.\n");
+            }
+            d = (d + i) % 10007;
+        }
+        printf(1, "d: %d\n", d);
+        printf(1, "done.\n");
     }
     else {
         printf(1, "invalid command\n");

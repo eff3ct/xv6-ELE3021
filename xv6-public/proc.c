@@ -390,10 +390,7 @@ scheduler(void)
       if (p->run_ticks == 100) {
         isSchedulerLocked = 0;
         clear_queue(&sched_lk_q);
-        if(p->state == RUNNABLE) {
-          push_proc(&L0, p);
-          reserved = p;
-        }
+        if(p->state == RUNNABLE) reserved = p;
         release(&ptable.lock);
         continue;
       }
@@ -427,6 +424,8 @@ scheduler(void)
       clear_queue(&L1);
       clear_queue(&L2);
       clear_queue(&sched_lk_q);
+
+      if (reserved != (void*)0) push_proc(&L0, reserved);
 
       struct proc* tp;
       for (tp = ptable.proc; tp < &ptable.proc[NPROC]; tp++) {

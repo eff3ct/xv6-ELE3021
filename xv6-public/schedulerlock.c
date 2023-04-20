@@ -54,8 +54,11 @@ schedulerLock(int password)
 void
 schedulerUnlock(int password)
 {
-  if (isSchedulerLocked == 0) 
-    panic("schedulerUnlock: scheduler is not locked.\n");
+  if (isSchedulerLocked == 0) {
+    cprintf("schedulerUnlock: scheduler is already unlocked.\n");
+    return;
+  }
+
   if (password == 2021093054) {
     isSchedulerLocked = 0;
     acquire(&ptable.lock);
