@@ -388,6 +388,11 @@ scheduler(void)
     if (isSchedulerLocked) {
       p = front(&sched_lk_q);
 
+      // Remove the process from L0, L1, L2
+      if (exists(&L0, p)) unlink_proc(&L0, p);
+      else if (exists(&L1, p)) unlink_proc(&L1, p);
+      else if (exists(&L2, p)) unlink_proc(&L2, p);
+
       if (p->run_ticks == 100) {
         isSchedulerLocked = 0;
         clear_queue(&sched_lk_q);
@@ -417,6 +422,12 @@ scheduler(void)
 
       release(&ptable.lock);
       continue;
+    }
+
+    if (reserved) {
+      push_proc(&L0, reserved);
+      set_front(&L0, reserved);
+      if (ticks != 0) reserved = (void*)0;
     }
 
     // Move all processes to L0 when ticks is 0. (priority boosting)
@@ -463,7 +474,7 @@ scheduler(void)
 
       set_front(&L0, p->next);
 
-      if (++p->run_ticks == L0.time_quantum) {
+      if (++p->run_ticks >= L0.time_quantum) {
         // Move to L1 queue
         unlink_proc(&L0, p);
         push_proc(&L1, p);
@@ -496,7 +507,7 @@ scheduler(void)
 
       set_front(&L1, p->next);
 
-      if (++p->run_ticks == L0.time_quantum) {
+      if (++p->run_ticks >= L0.time_quantum) {
         // Move to L2 queue
         unlink_proc(&L1, p);
         push_proc(&L2, p);
@@ -527,7 +538,7 @@ scheduler(void)
       switchkvm();
 
       c->proc = 0;
-      if (++p->run_ticks == L2.time_quantum) {
+      if (++p->run_ticks >= L2.time_quantum) {
         p->run_ticks = 0;
         p->priority = (p->priority >= 1) ? p->priority - 1 : 0;
       }

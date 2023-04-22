@@ -13,7 +13,8 @@ main(int argc, char* argv[])
         "intlock",
         "intunlock",
         "longlock",
-        "unlocktest"
+        "unlocktest",
+        "yield"
     };
 
     printf(1, "argv[1]: %s\n", argv[1]);
@@ -74,6 +75,9 @@ main(int argc, char* argv[])
         }
         printf(1, "d: %d\n", d);
         printf(1, "done.\n");
+    }
+    else if (strcmp(argv[1], cmds[7]) == 0) {
+        yield();
     }
     else {
         printf(1, "invalid command\n");
