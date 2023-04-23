@@ -14,6 +14,7 @@ extern struct {
 
 void setPriority(int pid, int priority)
 {
+  if (priority < 0 || priority > 3) panic("setPriority: invalid priority.\n");
   acquire(&ptable.lock);
   struct proc *p;
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
