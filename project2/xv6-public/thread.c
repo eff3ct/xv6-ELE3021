@@ -1,11 +1,16 @@
 #include "types.h"
 #include "defs.h"
-#include "thread.h"
+#include "param.h"
+#include "memlayout.h"
+#include "mmu.h"
+#include "x86.h"
+#include "proc.h"
+#include "spinlock.h"
 
 int
 thread_create(thread_t* thread, void* (*start_rotine)(void *), void *arg)
 {
-    return 0;
+    return 0;   
 }
 
 void

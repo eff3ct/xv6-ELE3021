@@ -28,9 +28,9 @@ get_pinfo(void)
     // RUNNABLE 혹은 RUNNING인 프로세스들만 출력합니다.
     if(p->state == RUNNABLE || p->state == RUNNING) {
       cprintf("========================\n");
-      cprintf("name: %s\n", p->name);
+      cprintf("Name: %s\n", p->name);
       cprintf("pid: %d\n", p->pid);
-      cprintf("The number of stack pages: %d\n", 0); // TODO: 스택 페이지 개수를 출력합니다.
+      cprintf("The number of stack pages: %d\n", p->stack_size); // TODO: 스택 페이지 개수를 출력합니다.
       cprintf("Allocated memory: %d\n", p->sz);
       cprintf("Max limit of memory: %d\n", p->max_memory); // TODO: 최대 메모리 한도를 출력합니다.
     }

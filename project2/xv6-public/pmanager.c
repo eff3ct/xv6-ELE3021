@@ -28,6 +28,17 @@ _fork(void)
   return pid;
 }
 
+int check_str(char* str) {
+  for(int i = 0; i < strlen(str); ++i) {
+    if(
+      !(('0' < str[i] && str[i] < '9') 
+      || ('a' < str[i] && str[i] < 'z') 
+      || ('A' < str[i] && str[i] < 'Z'))
+    ) return 0;
+  }
+  return 1;
+}
+
 // 명령어를 실행하는 함수입니다.
 void
 run_cmd(char* buf)
@@ -63,6 +74,11 @@ run_cmd(char* buf)
   // printf(1, "[DEBUG]: cmd: %s, arg0: %s, arg1: %s\n", cmd, arg0, arg1);
 
   // 명령어를 실행합니다.
+  // 명령어가 없으면 아무것도 하지 않습니다.
+  if(strlen(cmd) == 0 && strlen(arg0) == 0 && strlen(arg1) == 0) {
+    exit();
+    return;
+  }
   // 명령어가 공백으로 시작하면 에러입니다.
   if(strlen(cmd) == 0) err("A command shouldn't start with space.");
   // 프로그램을 탈출합니다.
@@ -75,12 +91,18 @@ run_cmd(char* buf)
     if(strlen(arg0) == 0 || strlen(arg0) > 10) err("kill: invalid pid");
     int pid = atoi(arg0);
     if(pid < 0 || pid > UPPER_BOUND) err("kill: invalid pid");
-    if(kill(pid) == -1) printf(2, "kill %d failed.\n", pid);
+    if(kill(pid) == -1) printf(2, "[ERROR] kill: kill %d failed.\n", pid);
     else printf(1, "kill %d success.\n", pid);
   }
   // exec2 시스템콜을 이용해 path의 프로그램을 실행합니다.
   else if(!strcmp(cmd, "exec")) {
-    // TODO: exec <path> <stacksize> 구현
+    if(strlen(arg0) == 0 || strlen(arg0) > 50) err("exec: invalid path");
+    if(!check_str(arg0)) err("exec: invalid path");
+    if(strlen(arg1) == 0 || strlen(arg1) > 10) err("exec: invalid stacksize");
+    if(atoi(arg1) < 0 || atoi(arg1) > UPPER_BOUND) err("exec: invalid stacksize");
+
+    char* argv[] = { arg0, 0 };
+    if(exec2(arg0, argv, atoi(arg1)) != 0) printf(2, "[ERROR] exec: %s failed.\n", arg0);
   }
   // 실행중인 프로세스들의 정보를 출력합니다.
   else if(!strcmp(cmd, "list")) get_pinfo();

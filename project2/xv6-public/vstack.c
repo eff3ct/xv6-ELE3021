@@ -7,6 +7,13 @@
 #include "x86.h"
 #include "elf.h"
 
+/**
+ * @brief stacksize 만큼의 스택을 만드는 exec 함수입니다.
+ * @param path 
+ * @param argv 
+ * @param stacksize 
+ * @return int 성공 시 0, 실패 시 -1을 반환합니다.
+ */
 int
 exec2(char* path, char** argv, int stacksize)
 {
@@ -100,6 +107,7 @@ exec2(char* path, char** argv, int stacksize)
   curproc->sz = sz;
   curproc->tf->eip = elf.entry;  // main
   curproc->tf->esp = sp;
+  curproc->stack_size = stacksize;
   switchuvm(curproc);
   freevm(oldpgdir);
   return 0;

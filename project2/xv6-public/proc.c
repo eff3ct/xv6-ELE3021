@@ -132,6 +132,7 @@ userinit(void)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
   p->sz = PGSIZE;
+  p->stack_size = 1;
   p->max_memory = 0; // 최대 메모리 한도를 0으로 초기화합니다.
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
@@ -202,6 +203,7 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+  np->stack_size = curproc->stack_size;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;

@@ -10,6 +10,8 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+typedef struct proc thread_t;
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);

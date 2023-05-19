@@ -34,7 +34,7 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
-// Per-process state
+// Per-process(thread) state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
   pde_t* pgdir;                // Page table
@@ -51,7 +51,12 @@ struct proc {
   char name[16];               // Process name (debugging)
   // | Project 2 |
   int max_memory;              // 최대 메모리 한도
+  int is_thread;               // 스레드 여부
+  int stack_size;              // 스택용 페이지 개수
+  struct proc *master;         // 스레드의 마스터 프로세스
 };
+
+typedef struct proc thread_t;
 
 // Process memory is laid out contiguously, low addresses first:
 //   text
