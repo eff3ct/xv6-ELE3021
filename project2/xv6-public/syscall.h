@@ -25,3 +25,4 @@
 #define SYS_thread_create 24
 #define SYS_thread_exit 25
 #define SYS_thread_join 26
+#define SYS_get_pinfo 27

@@ -1,3 +1,5 @@
+#include "types.h"
+#include "defs.h"
 #include "thread.h"
 
 int

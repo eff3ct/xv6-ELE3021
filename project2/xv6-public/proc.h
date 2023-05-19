@@ -49,6 +49,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  // | Project 2 |
+  int max_memory;              // 최대 메모리 한도
 };
 
 // Process memory is laid out contiguously, low addresses first:

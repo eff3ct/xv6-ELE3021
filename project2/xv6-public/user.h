@@ -24,6 +24,15 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 
+// vstack.c
+int exec2(char*, char**, int);
+
+// memlimit.c
+int setmemorylimit(int, int);
+
+// plist.c
+void get_pinfo(void);
+
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
