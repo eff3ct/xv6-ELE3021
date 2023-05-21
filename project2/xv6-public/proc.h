@@ -25,11 +25,11 @@ extern int ncpu;
 // at the "Switch stacks" comment. Switch doesn't save eip explicitly,
 // but it is on the stack and allocproc() manipulates it.
 struct context {
-  uint edi;
-  uint esi;
-  uint ebx;
-  uint ebp;
-  uint eip;
+  uint edi; // 데이터 조작 및 복사할 때 데이터의 주소를 저장하는 레지스터
+  uint esi; // 데이터 복사 시 목적지 주소를 저장하는 레지스터
+  uint ebx; // 메모리 주소를 저장하는 데 사용되는 레지스터
+  uint ebp; // stack의 첫번째 주소를 담고 있는 레지스터
+  uint eip; // 다음 실행할 명령어를 가르키는 레지스터
 };
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
@@ -53,6 +53,7 @@ struct proc {
   int max_memory;              // 최대 메모리 한도
   int is_thread;               // 스레드 여부
   int stack_size;              // 스택용 페이지 개수
+  int tid;                     // 스레드 id
   struct proc *master;         // 스레드의 마스터 프로세스
 };
 

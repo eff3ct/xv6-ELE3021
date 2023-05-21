@@ -88,6 +88,8 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->max_memory = 0; // 최대 메모리 한도를 0으로 초기화합니다.
+  p->is_thread = 0;
 
   release(&ptable.lock);
 
@@ -111,8 +113,6 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
-
-  p->max_memory = 0; // 최대 메모리 한도를 0으로 초기화합니다.
 
   return p;
 }
