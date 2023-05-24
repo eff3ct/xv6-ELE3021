@@ -54,10 +54,11 @@ struct proc {
   int is_thread;               // 스레드 여부
   int stack_size;              // 스택용 페이지 개수
   int tid;                     // 스레드 id
-  struct proc *master;         // 스레드의 마스터 프로세스
+  struct proc *master;         // 스레드의 메인 프로세스
+  void* ret_val;               // 스레드의 리턴 값
 };
 
-typedef struct proc thread_t;
+typedef uint thread_t;
 
 // Process memory is laid out contiguously, low addresses first:
 //   text

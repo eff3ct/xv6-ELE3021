@@ -10,7 +10,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
-typedef struct proc thread_t;
+typedef uint thread_t;
 
 // bio.c
 void            binit(void);
@@ -196,6 +196,11 @@ int             exec2(char*, char**, int);
 
 // plist.c
 void            get_pinfo(void);
+
+// thread.c
+int             thread_create(thread_t*, void* (*)(void*), void*);
+int             thread_join(thread_t, void**);
+void            thread_exit(void*);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

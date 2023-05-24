@@ -1,6 +1,8 @@
 struct stat;
 struct rtcdate;
 
+typedef uint thread_t;
+
 // system calls
 int fork(void);
 int exit(void) __attribute__((noreturn));
@@ -32,6 +34,11 @@ int setmemorylimit(int, int);
 
 // plist.c
 void get_pinfo(void);
+
+// thread.c
+int thread_create(thread_t*, void* (*)(void*), void*);
+int thread_join(thread_t, void**);
+void thread_exit(void*);
 
 // ulib.c
 int stat(const char*, struct stat*);

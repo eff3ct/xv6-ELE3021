@@ -13,6 +13,7 @@ struct {
 } ptable;
 
 static struct proc *initproc;
+struct proc* ext_initproc;
 
 int nextpid = 1;
 extern void forkret(void);
@@ -128,6 +129,7 @@ userinit(void)
   p = allocproc();
   
   initproc = p;
+  ext_initproc = initproc;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);

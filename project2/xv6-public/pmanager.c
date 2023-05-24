@@ -95,7 +95,7 @@ run_cmd(char* buf)
     else printf(1, "kill %d success.\n", pid);
   }
   // exec2 시스템콜을 이용해 path의 프로그램을 실행합니다.
-  else if(!strcmp(cmd, "exec")) {
+  else if(!strcmp(cmd, "execute")) {
     if(strlen(arg0) == 0 || strlen(arg0) > 50) err("exec: invalid path");
     if(!check_str(arg0)) err("exec: invalid path");
     if(strlen(arg1) == 0 || strlen(arg1) > 10) err("exec: invalid stacksize");
