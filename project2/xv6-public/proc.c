@@ -167,7 +167,9 @@ growproc(int n)
   uint sz;
   struct proc *curproc = myproc();
 
-  sz = curproc->sz;
+  acquire(&ptable.lock);
+  if(curproc->is_thread) sz = curproc->master->sz;
+  else sz = curproc->sz;
   if(n > 0){
     if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
       return -1;
@@ -175,7 +177,17 @@ growproc(int n)
     if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0)
       return -1;
   }
-  curproc->sz = sz;
+  if(curproc->is_thread) {
+    curproc->master->sz = sz;
+    // 모든 스레드에서 sz를 공유합니다.
+    for(struct proc* p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+      if(p->pid == curproc->pid) 
+        p->sz = curproc->master->sz;
+    }
+  }
+  else curproc->sz = sz;
+  release(&ptable.lock);
+
   switchuvm(curproc);
   return 0;
 }
@@ -206,6 +218,7 @@ fork(void)
   np->parent = curproc;
   *np->tf = *curproc->tf;
   np->stack_size = curproc->stack_size;
+  np->is_thread = 0;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -296,9 +309,11 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        freevm(p->pgdir);
+        if(!p->is_thread)
+          freevm(p->pgdir);
         p->pid = 0;
         p->parent = 0;
+        p->master = 0;
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
@@ -487,6 +502,7 @@ int
 kill(int pid)
 {
   struct proc *p;
+  int is_killed = 0;
 
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -495,11 +511,12 @@ kill(int pid)
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
         p->state = RUNNABLE;
-      release(&ptable.lock);
-      return 0;
+      is_killed = 1;
     }
   }
   release(&ptable.lock);
+
+  if(is_killed) return 0;
   return -1;
 }
 

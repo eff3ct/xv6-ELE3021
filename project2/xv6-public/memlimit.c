@@ -17,8 +17,8 @@ setmemorylimit(int pid, int limit)
 {
   acquire(&ptable.lock);
   struct proc* p;
-  for (p = ptable.proc; p < &ptable.proc[NPROC]; ++p) {
-    if (p->pid == pid) {
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; ++p) {
+    if(p->pid == pid) {
       p->max_memory = limit;
       release(&ptable.lock);
       return 0;
@@ -32,7 +32,7 @@ int
 sys_setmemorylimit(void)
 {
   int pid, limit;
-  if (argint(0, &pid) < 0 || argint(1, &limit) < 0)
+  if(argint(0, &pid) < 0 || argint(1, &limit) < 0)
     return -1;
   return setmemorylimit(pid, limit);
 }

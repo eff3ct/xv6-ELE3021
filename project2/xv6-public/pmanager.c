@@ -28,12 +28,14 @@ _fork(void)
   return pid;
 }
 
-int check_str(char* str) {
+int 
+check_str(char* str) 
+{
   for(int i = 0; i < strlen(str); ++i) {
     if(
-      !(('0' < str[i] && str[i] < '9') 
-      || ('a' < str[i] && str[i] < 'z') 
-      || ('A' < str[i] && str[i] < 'Z'))
+      !(('0' <= str[i] && str[i] <= '9') 
+      || ('a' <= str[i] && str[i] <= 'z') 
+      || ('A' <= str[i] && str[i] <= 'Z'))
     ) return 0;
   }
   return 1;
@@ -102,7 +104,9 @@ run_cmd(char* buf)
     if(atoi(arg1) < 0 || atoi(arg1) > UPPER_BOUND) err("exec: invalid stacksize");
 
     char* argv[] = { arg0, 0 };
-    if(exec2(arg0, argv, atoi(arg1)) != 0) printf(2, "[ERROR] exec: %s failed.\n", arg0);
+
+    if(_fork() == 0 
+    && exec2(arg0, argv, atoi(arg1)) != 0) printf(2, "[ERROR] exec: %s failed.\n", arg0);
   }
   // 실행중인 프로세스들의 정보를 출력합니다.
   else if(!strcmp(cmd, "list")) get_pinfo();
@@ -110,7 +114,7 @@ run_cmd(char* buf)
   else if(!strcmp(cmd, "memlim")) {
     int pid = atoi(arg0);
     int limit = atoi(arg1);
-
+    
     if(strlen(arg0) == 0 || strlen(arg0) > 10) err("memlim: invalid pid.");
     if(pid < 0 || pid > UPPER_BOUND) err("memlim: invalid pid");
     if(strlen(arg1) == 0 || strlen(arg1) > 10) err("memlim: invalid limit.");

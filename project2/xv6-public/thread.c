@@ -98,16 +98,18 @@ alloc_thread(void)
 int
 alloc_ustack(struct proc* trd)
 {
-  struct proc* curproc = myproc();
   // 스레드의 유저 스택을 설정합니다.
-  curproc->sz = PGROUNDUP(curproc->sz);
-  if((curproc->sz = allocuvm(curproc->pgdir, curproc->sz, curproc->sz + 2 * PGSIZE)) == 0) {
+  trd->master->sz = PGROUNDUP(trd->master->sz);
+  if((trd->master->sz = allocuvm(trd->master->pgdir, trd->master->sz, trd->master->sz + 2 * PGSIZE)) == 0) {
     kfree(trd->kstack);
     trd->kstack = 0;
     trd->state = UNUSED;
     return -1;
   }
-  trd->sz = curproc->sz;
+  trd->sz = trd->master->sz;
+
+  // cprintf("alloc_ustack: %d\n", trd->sz);
+  // cprintf("master: %d\n", trd->master->sz);
 
   return 0;
 }
@@ -134,7 +136,6 @@ thread_create(thread_t* thread, void* (*start_routine)(void *), void *arg)
   if(alloc_ustack(trd) == -1) {
     return -1;
   }
-  release(&ptable.lock);
 
   // 스레드의 스택에 실행할 함수와 인자를 넣습니다.
   uint sp = trd->sz;
@@ -145,9 +146,16 @@ thread_create(thread_t* thread, void* (*start_routine)(void *), void *arg)
   if(copyout(trd->pgdir, sp, ustack, 2 * sizeof(uint)) < 0) {
     return -1;
   }
-  trd->tf->eax = 0;
   trd->tf->eip = (uint)start_routine;
   trd->tf->esp = sp;
+
+  // 모든 스레드에서 sz를 공유합니다.
+  for(struct proc* p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p->pid == trd->pid) 
+      p->sz = trd->sz;
+  }
+
+  release(&ptable.lock);
 
   // 파일 디스크립터를 복사합니다.
   for(int i = 0; i < NOFILE; i++)
