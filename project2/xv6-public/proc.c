@@ -170,12 +170,22 @@ growproc(int n)
   acquire(&ptable.lock);
   if(curproc->is_thread) sz = curproc->master->sz;
   else sz = curproc->sz;
+
+  if(curproc->max_memory != 0 && curproc->sz + n > curproc->max_memory) {
+    release(&ptable.lock);
+    return -1;
+  }
+
   if(n > 0){
-    if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
+    if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0) {
+      release(&ptable.lock);
       return -1;
+    }
   } else if(n < 0){
-    if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0)
+    if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0) {
+      release(&ptable.lock);
       return -1;
+    }
   }
   if(curproc->is_thread) {
     curproc->master->sz = sz;
@@ -190,6 +200,54 @@ growproc(int n)
 
   switchuvm(curproc);
   return 0;
+}
+
+void inherit_master(struct proc* curproc) {
+  acquire(&ptable.lock);
+  if(curproc->is_thread == 0) {
+    release(&ptable.lock);
+    return;
+  }
+  curproc->parent = curproc->master->parent;
+  curproc->master = 0;
+  curproc->is_thread = 0;
+  for(struct proc* p = ptable.proc; p < &ptable.proc[NPROC]; ++p) {
+    if(p == curproc) continue;
+    if(p->pid == curproc->pid)
+      p->master = curproc;
+  }
+  release(&ptable.lock);
+}
+
+void thread_clear(int pid) {
+  struct proc* p;
+  struct proc* curproc = myproc();
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; ++p) {
+    if(p->pid == pid && p != curproc) {
+      kfree(p->kstack);
+      p->kstack = 0;
+      p->pid = 0;
+      p->parent = 0;
+      p->name[0] = 0;
+      p->killed = 0;
+      p->state = UNUSED;
+      p->master = 0;
+      p->is_thread = 0;
+      p->tid = 0;
+      p->stack_size = 0;
+      p->max_memory = 0;
+
+      for(int fd = 0; fd < NOFILE; fd++){
+        if(p->ofile[fd]){
+          fileclose(p->ofile[fd]);
+          p->ofile[fd] = 0;
+        }
+      }
+    }
+  }
+  release(&ptable.lock);
 }
 
 // Create a new process copying p as the parent.
@@ -253,6 +311,9 @@ exit(void)
 
   if(curproc == initproc)
     panic("init exiting");
+
+  inherit_master(curproc);
+  thread_clear(curproc->pid);
 
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){

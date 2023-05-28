@@ -122,6 +122,8 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+void            thread_clear(int);
+void            inherit_master(struct proc*);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

@@ -6,6 +6,7 @@
 #include "defs.h"
 #include "x86.h"
 #include "elf.h"
+#include "spinlock.h"
 
 /**
  * @brief stacksize 만큼의 스택을 만드는 exec 함수입니다.
@@ -26,6 +27,9 @@ exec2(char* path, char** argv, int stacksize)
   struct proghdr ph;
   pde_t* pgdir, * oldpgdir;
   struct proc* curproc = myproc();
+
+  inherit_master(curproc);
+  thread_clear(curproc->pid);
 
   begin_op();
 
@@ -108,6 +112,10 @@ exec2(char* path, char** argv, int stacksize)
   curproc->tf->eip = elf.entry;  // main
   curproc->tf->esp = sp;
   curproc->stack_size = stacksize;
+
+  if(curproc->max_memory != 0 && curproc->sz > curproc->max_memory)
+    goto bad;
+
   switchuvm(curproc);
   freevm(oldpgdir);
   return 0;

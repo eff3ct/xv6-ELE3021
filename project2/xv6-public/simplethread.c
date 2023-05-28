@@ -11,6 +11,19 @@ thread_func(void* i) {
   return (void*)0;
 }
 
+void*
+overlapped_thread(void* i) {
+  int status;
+  int n = *(int*)i;
+  int c = n + 1;
+  printf(1, "thread parent %d\n", n);
+  thread_create(&t[1], thread_func, (void*)&c);
+  thread_join(t[1], (void**)&status);
+  printf(1, "thread child joined. %d\n", n);
+  thread_exit((void*)0);
+  return (void*)0;
+}
+
 int 
 main() 
 {
@@ -26,6 +39,11 @@ main()
   }
 
   printf(1, "main ended.\n");
+
+  printf(1, "overlapped-thread-test started.\n");
+  thread_create(&t[0], overlapped_thread, (void*)&a[0]);
+  thread_join(t[0], (void**)&status);
+  printf(1, "overlapped-thread-test ended.\n");
 
   exit();
 }

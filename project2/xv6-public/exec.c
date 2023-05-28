@@ -6,6 +6,7 @@
 #include "defs.h"
 #include "x86.h"
 #include "elf.h"
+#include "spinlock.h"
 
 int
 exec(char *path, char **argv)
@@ -18,6 +19,9 @@ exec(char *path, char **argv)
   struct proghdr ph;
   pde_t *pgdir, *oldpgdir;
   struct proc *curproc = myproc();
+
+  inherit_master(curproc);
+  thread_clear(curproc->pid);
 
   begin_op();
 
@@ -100,7 +104,11 @@ exec(char *path, char **argv)
   curproc->tf->eip = elf.entry;  // main
   curproc->tf->esp = sp;
   curproc->stack_size = 1;
-  curproc->master = curproc;
+  curproc->master = 0;
+
+  if(curproc->max_memory != 0 && curproc->sz > curproc->max_memory)
+    goto bad;
+
   switchuvm(curproc);
   freevm(oldpgdir);
   return 0;
