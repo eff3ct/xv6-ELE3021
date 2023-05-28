@@ -106,6 +106,7 @@ alloc_ustack(struct proc* trd)
     trd->state = UNUSED;
     return -1;
   }
+  clearpteu(trd->master->pgdir, (char*)(trd->master->sz - 2 * PGSIZE));
   trd->sz = trd->master->sz;
 
   // cprintf("alloc_ustack: %d\n", trd->sz);
