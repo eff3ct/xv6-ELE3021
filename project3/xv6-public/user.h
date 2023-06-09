@@ -1,5 +1,6 @@
 struct stat;
 struct rtcdate;
+struct inode;
 
 // system calls
 int fork(void);
@@ -16,6 +17,7 @@ int mknod(const char*, short, short);
 int unlink(const char*);
 int fstat(int fd, struct stat*);
 int link(const char*, const char*);
+int link2(const char*, const char*, const char*);
 int mkdir(const char*);
 int chdir(const char*);
 int dup(int);
@@ -23,6 +25,9 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int sync(void);
+int issymlink(const char*);
+int symopen(const char*, const char*);
 
 // ulib.c
 int stat(const char*, struct stat*);

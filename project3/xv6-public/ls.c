@@ -30,9 +30,17 @@ ls(char *path)
   struct dirent de;
   struct stat st;
 
-  if((fd = open(path, 0)) < 0){
-    printf(2, "ls: cannot open %s\n", path);
-    return;
+  if(!issymlink(path)) {
+    if((fd = open(path, 0)) < 0){
+      printf(2, "ls: cannot open %s\n", path);
+      return;
+    }
+  }
+  else {
+    if((fd = symopen(path, 0)) < 0){
+      printf(2, "ls: cannot open %s\n", path);
+      return;
+    }
   }
 
   if(fstat(fd, &st) < 0){

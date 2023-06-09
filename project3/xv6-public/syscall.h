@@ -20,3 +20,7 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+#define SYS_link2  22
+#define SYS_sync   23
+#define SYS_issymlink 24
+#define SYS_symopen 25
