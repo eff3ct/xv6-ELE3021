@@ -173,6 +173,13 @@ end_op(void)
   }
 }
 
+int 
+sys_sync(void)
+{
+  // TODO: sync 구현
+  return 0;
+}
+
 // Copy modified blocks from cache to log.
 static void
 write_log(void)
