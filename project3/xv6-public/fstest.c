@@ -28,6 +28,7 @@ single_indirect_test(void)
     }
     write(fd, buf, 512);
   }
+  sync();
   close(fd);
 
   // 해당 블록들을 읽어서 확인합니다.
@@ -78,6 +79,7 @@ double_indirect_test(void)
     }
     write(fd, buf, 512);
   }
+  sync();
   close(fd);
 
   // 해당 블록들을 읽어서 확인합니다.
@@ -128,6 +130,7 @@ tripple_indirect_test(void)
     }
     write(fd, buf, 512);
   }
+  sync();
   close(fd);
 
   // 해당 블록들을 읽어서 확인합니다.

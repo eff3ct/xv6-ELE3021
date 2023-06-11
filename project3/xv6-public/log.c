@@ -121,18 +121,24 @@ recover_from_log(void)
   write_head(); // clear the log
 }
 
-// called at the start of each FS system call.
+// 트랜잭션을 시작합니다.
 void
 begin_op(void)
 {
   acquire(&log.lock);
   while(1){
-    if(log.committing){
+    // 커밋(sync) 중일 경우 재웁니다.
+    if(log.committing) {
       sleep(&log, &log.lock);
-    } else if(log.lh.n + (log.outstanding+1)*MAXOPBLOCKS > LOGSIZE){
-      // this op might exhaust log space; wait for commit.
-      sleep(&log, &log.lock);
-    } else {
+    }
+    // 로그 공간이 부족할 경우 sync를 호출합니다.
+    else if(log.lh.n + (log.outstanding+1)*MAXOPBLOCKS > LOGSIZE) {
+      release(&log.lock);
+      sync();
+      acquire(&log.lock);
+    } 
+    // 로그 공간이 충분할 경우, outstanding을 증가시키고 잠금을 해제합니다.
+    else {
       log.outstanding += 1;
       release(&log.lock);
       break;
@@ -140,44 +146,62 @@ begin_op(void)
   }
 }
 
-// called at the end of each FS system call.
-// commits if this was the last outstanding operation.
+// 트랜잭션을 종료합니다.
 void
 end_op(void)
 {
-  int do_commit = 0;
-
+  // 현재 트랜잭션이 종료되었으므로, log.outstanding을 감소시킵니다.
   acquire(&log.lock);
   log.outstanding -= 1;
-  if(log.committing)
-    panic("log.committing");
-  if(log.outstanding == 0){
-    do_commit = 1;
-    log.committing = 1;
-  } else {
-    // begin_op() may be waiting for log space,
-    // and decrementing log.outstanding has decreased
-    // the amount of reserved space.
-    wakeup(&log);
-  }
+  wakeup(&log); // 자고 있는 begin_op를 깨웁니다.
   release(&log.lock);
 
-  if(do_commit){
-    // call commit w/o holding locks, since not allowed
-    // to sleep with locks.
+  // if(do_commit){
+  //   // call commit w/o holding locks, since not allowed
+  //   // to sleep with locks.
+  //   commit();
+  //   acquire(&log.lock);
+  //   log.committing = 0;
+  //   wakeup(&log);
+  //   release(&log.lock);
+  // }
+}
+
+int
+sync(void)
+{
+  int do_commit = 0;
+  int ret = 0;
+
+  acquire(&log.lock);
+  if(log.committing)
+    panic("log.committing");
+  if(log.outstanding == 0) {
+    do_commit = 1;
+    log.committing = 1;
+    ret = log.lh.n;
+  } 
+  release(&log.lock);
+
+  if(do_commit) {
     commit();
     acquire(&log.lock);
     log.committing = 0;
     wakeup(&log);
     release(&log.lock);
   }
+  
+  return ret;
 }
 
+/**
+ * @brief sync system call의 wrapper입니다.
+ * @return int flush된 block의 개수를 반환합니다. 실패할 시 -1를 리턴합니다.
+ */
 int 
 sys_sync(void)
 {
-  // TODO: sync 구현
-  return 0;
+  return sync();
 }
 
 // Copy modified blocks from cache to log.
