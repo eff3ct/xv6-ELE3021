@@ -17,7 +17,17 @@ no_sync_close(void)
   write(fd, buf, 20);
   close(fd);
 
-  fd = open("no_sync_close", O_RDONLY);
+  // 강제로 시스템을 종료시킵니다.
+  // 시스템이 종료되었으므로, 버퍼의 내용이 반영되지 않았습니다.
+  // 종료는 수동으로 합니다.
+  exit();
+}
+
+void
+check_no_sync_close(void)
+{
+  int fd = open("no_sync_close", O_RDONLY);
+  char buf[20];
   memset(buf, 0, 20);
   read(fd, buf, 20);
   close(fd);
@@ -66,14 +76,14 @@ sync_close(void)
     printf(1, "[TEST] sync close test failed..\n");
     exit();
   }
-
-  unlink("sync_close");
 }
 
 int
 main(int argc, char* argv[])
 {
-  no_sync_close();
-  sync_close();
+  int test_n = atoi(argv[1]);
+  if(test_n == 0) no_sync_close();
+  else if(test_n == 1) check_no_sync_close();
+  else sync_close();
   exit();
 }
