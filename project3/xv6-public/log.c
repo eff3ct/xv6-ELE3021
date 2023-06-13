@@ -153,7 +153,7 @@ end_op(void)
   // 현재 트랜잭션이 종료되었으므로, log.outstanding을 감소시킵니다.
   acquire(&log.lock);
   log.outstanding -= 1;
-  wakeup(&log); // 자고 있는 begin_op를 깨웁니다.
+  // wakeup(&log); // 자고 있는 begin_op를 깨웁니다.
   release(&log.lock);
 
   // if(do_commit){
